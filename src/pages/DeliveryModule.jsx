@@ -1,0 +1,184 @@
+import React, { useState, useEffect } from 'react';
+import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw } from 'lucide-react';
+import { fetchOrders, updateOrderMeta, getWcConfig } from '../services/api';
+
+const DeliveryModule = () => {
+  const [deliveries, setDeliveries] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = async () => {
+    if (!getWcConfig()) {
+      setError("Faltan credenciales API.");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const allOrders = await fetchOrders(1, 30);
+      // Filtramos solo los pedidos que requieren envío físico
+      const deliveryOrders = allOrders.filter(o => 
+        o.requiresDelivery && o.status !== 'cancelled' && o.status !== 'refunded'
+      );
+      setDeliveries(deliveryOrders);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (rawId, newStatus) => {
+    setUpdatingId(rawId);
+    try {
+      await updateOrderMeta(rawId, 'derp_delivery_status', newStatus);
+      // Si se entregó, opcionalmente podríamos cambiar el status general de WooCommerce a 'completed'
+      // pero por ahora solo manejamos el estado logístico interno
+      setDeliveries(prev => prev.map(o => o.rawId === rawId ? { ...o, deliveryStatus: newStatus } : o));
+    } catch (err) {
+      alert("Error actualizando envío: " + err.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="page-content animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <header className="page-header" style={{ marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Truck size={28} color="var(--primary)" />
+            Rutas de Entrega (En Vivo)
+          </h1>
+          <p className="subtitle">Panel de repartidor: Gestiona tus pedidos sincronizados</p>
+        </div>
+        <div className="header-actions">
+          <button onClick={loadOrders} disabled={isLoading} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px' }}>
+            <RefreshCw size={18} className={isLoading ? 'spin' : ''} />
+            Sincronizar Rutas
+          </button>
+        </div>
+      </header>
+
+      {error ? (
+        <div style={{ padding: '20px', background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)', borderRadius: '12px', border: '1px solid var(--accent-danger)' }}>
+          {error}
+        </div>
+      ) : (
+        <div className="delivery-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {isLoading && deliveries.length === 0 ? (
+             <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando rutas de WooCommerce...</div>
+          ) : deliveries.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <CheckCircle size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+              <h3>No tienes entregas pendientes</h3>
+              <p>No hay pedidos con envío pendiente en el sistema.</p>
+            </div>
+          ) : (
+            deliveries.map(delivery => (
+              <div key={delivery.rawId} className="delivery-card glass-panel" style={{ 
+                overflow: 'hidden', 
+                borderLeft: `4px solid ${
+                  delivery.deliveryStatus === 'en_route' ? 'var(--accent-warning)' : 
+                  delivery.deliveryStatus === 'delivered' ? 'var(--accent-success)' : 
+                  'var(--primary)'
+                }`
+              }}>
+                
+                <div style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <div>
+                      <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>{delivery.id}</h2>
+                      <div style={{ display: 'flex', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><User size={14}/> {delivery.customer}</span>
+                        <span>•</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={14}/> {delivery.date}</span>
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold',
+                      background: delivery.deliveryStatus === 'en_route' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                      color: delivery.deliveryStatus === 'en_route' ? 'var(--accent-warning)' : 'var(--primary)'
+                    }}>
+                      {delivery.deliveryStatus === 'pending' && 'Listo para Reparto'}
+                      {delivery.deliveryStatus === 'en_route' && 'En Ruta'}
+                      {delivery.deliveryStatus === 'delivered' && 'Entregado'}
+                    </div>
+                  </div>
+
+                  <div className="glass-surface" style={{ padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                      <MapPin size={20} color="var(--secondary)" style={{ marginTop: '2px' }} />
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Dirección de entrega</div>
+                        <div style={{ fontWeight: '500' }}>{delivery.address}</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <Phone size={20} color="var(--primary)" />
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Teléfono</div>
+                        <div style={{ fontWeight: '500' }}>{delivery.phone}</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <Package size={20} color="var(--text-muted)" />
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Contenido ({delivery.total})</div>
+                        <div style={{ fontSize: '0.9rem' }}>{delivery.materials.join(', ')}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {delivery.deliveryStatus === 'pending' && (
+                      <button onClick={() => handleUpdateStatus(delivery.rawId, 'en_route')} disabled={updatingId === delivery.rawId} className="btn-action" style={{ background: 'var(--accent-warning)', color: '#fff' }}>
+                        <Navigation size={18} /> {updatingId === delivery.rawId ? 'Actualizando...' : 'Iniciar Ruta'}
+                      </button>
+                    )}
+                    {delivery.deliveryStatus === 'en_route' && (
+                      <>
+                        <button onClick={() => window.open(`https://maps.google.com/?q=${delivery.address}`, '_blank')} className="btn-action glass-surface" style={{ flex: 1, border: '1px solid var(--border-color)', color: 'white' }}>
+                          <MapPin size={18} /> Ver Mapa
+                        </button>
+                        <button onClick={() => handleUpdateStatus(delivery.rawId, 'delivered')} disabled={updatingId === delivery.rawId} className="btn-action" style={{ flex: 2, background: 'var(--accent-success)', color: '#fff' }}>
+                          <CheckCircle size={18} /> {updatingId === delivery.rawId ? 'Actualizando...' : 'Marcar como Entregado'}
+                        </button>
+                      </>
+                    )}
+                    {delivery.deliveryStatus === 'delivered' && (
+                      <div style={{ width: '100%', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                        Este pedido ya fue entregado al cliente.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      <style>{`
+        .btn-action {
+          flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 12px; border: none; border-radius: 8px; font-weight: 600;
+          cursor: pointer; transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn-action:hover:not(:disabled) { transform: translateY(-2px); opacity: 0.9; }
+        .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+};
+
+export default DeliveryModule;
