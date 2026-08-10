@@ -133,7 +133,7 @@ const DeliveryModule = () => {
                       <Package size={20} color="var(--text-muted)" />
                       <div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Contenido ({delivery.total})</div>
-                        <div style={{ fontSize: '0.9rem' }}>{delivery.materials.join(', ')}</div>
+                        <div style={{ fontSize: '0.9rem' }}>{delivery.itemsDetail?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Sin productos'}</div>
                       </div>
                     </div>
                   </div>
