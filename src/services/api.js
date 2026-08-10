@@ -1,93 +1,99 @@
-export const getWcConfig = async () => {
+import { supabase } from './supabase';
+
+const fetchAppData = async (id, defaultValue) => {
   try {
-    const res = await fetch('/api/settings');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.consumerKey) return data;
-    }
-  } catch(e) {
-    console.error('Error fetching settings config:', e);
+    const { data, error } = await supabase.from('app_data').select('data').eq('id', id).single();
+    if (error || !data) return defaultValue;
+    return data.data;
+  } catch (e) {
+    console.error(`Error fetching app_data for ${id}`, e);
+    return defaultValue;
   }
-  return null;
+};
+
+const saveAppData = async (id, dataObj) => {
+  try {
+    const { error } = await supabase.from('app_data').upsert({ id, data: dataObj });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error(`Error saving app_data for ${id}`, e);
+    return false;
+  }
+};
+
+export const getWcConfig = async () => {
+  return await fetchAppData('settings', null);
 };
 
 export const saveApiSettings = async (settings) => {
-  try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
-    });
-    return res.ok;
-  } catch(e) { 
-    console.error(e); 
-    return false; 
-  }
+  return await saveAppData('settings', settings);
 };
 
 export const fetchProfiles = async () => {
-  try {
-    const res = await fetch('/api/profiles');
-    if (res.ok) return await res.json();
-  } catch(e) { console.error(e); }
-  return {};
+  return await fetchAppData('profiles', []);
 };
 
 export const saveProfiles = async (profiles) => {
-  try {
-    const res = await fetch('/api/profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profiles)
-    });
-    return res.ok;
-  } catch(e) { console.error(e); return false; }
+  return await saveAppData('profiles', profiles);
 };
 
 export const fetchLogs = async () => {
-  try {
-    const res = await fetch('/api/logs');
-    if (res.ok) return await res.json();
-  } catch(e) { console.error('Error fetching logs', e); }
-  return [];
+  return await fetchAppData('logs', []);
 };
 
-export const saveLog = async (logData) => {
+export const saveLog = async (logEntry) => {
   try {
-    const res = await fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logData)
+    const logs = await fetchAppData('logs', []);
+    logs.push({
+      ...logEntry,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString()
     });
-    return res.ok;
+    return await saveAppData('logs', logs);
   } catch(e) { console.error('Error saving log', e); return false; }
 };
 
 export const fetchCustomStatuses = async () => {
-  try {
-    const res = await fetch('/api/custom-statuses');
-    if (res.ok) return await res.json();
-  } catch(e) { console.error('Error fetching custom statuses', e); }
-  return [];
+  return await fetchAppData('customStatuses', []);
 };
 
 export const saveCustomStatuses = async (statuses) => {
-  try {
-    const res = await fetch('/api/custom-statuses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(statuses)
-    });
-    return res.ok;
-  } catch(e) { console.error('Error saving custom statuses', e); return false; }
+  return await saveAppData('customStatuses', statuses);
 };
 
 export const checkManualAvailability = async (productId) => {
   try {
-    const res = await fetch(`/api/manuals/${productId}`);
-    if (res.ok) return await res.json();
-  } catch(e) { console.error('Error fetching manual availability', e); }
-  return { image: null, video: null };
+    const { data: files, error } = await supabase.storage.from('manuales').list('', {
+      limit: 100,
+      search: productId
+    });
+    
+    if (error || !files) return { image: null, video: null };
+    
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const videoExtensions = ['.mp4', '.mov', '.webm'];
+    
+    const imageFile = files.find(f => {
+      const p = f.name.split('.');
+      return p[0] === productId && imageExtensions.includes('.' + p[p.length - 1].toLowerCase());
+    });
+    
+    const videoFile = files.find(f => {
+      const p = f.name.split('.');
+      return p[0] === productId && videoExtensions.includes('.' + p[p.length - 1].toLowerCase());
+    });
+
+    const getUrl = (file) => file ? supabase.storage.from('manuales').getPublicUrl(file.name).data.publicUrl : null;
+
+    return {
+      image: getUrl(imageFile),
+      video: getUrl(videoFile)
+    };
+  } catch(e) { 
+    console.error('Error fetching manual availability from Supabase', e); 
+    return { image: null, video: null };
+  }
 };
 
 const wcFetch = async (path, options = {}) => {

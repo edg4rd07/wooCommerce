@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node server/index.js & vite",
+    "dev": "vite",
     "dev:client": "vite",
     "dev:server": "node server/index.js",
     "build": "vite build",
@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.2",
     "chart.js": "^4.5.1",
     "concurrently": "^10.0.3",
     "cors": "^2.8.6",
