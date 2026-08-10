@@ -23,7 +23,7 @@ const saveAppData = async (id, dataObj) => {
 };
 
 export const getWcConfig = async () => {
-  return await fetchAppData('settings', null);
+  return await fetchAppData('settings', {});
 };
 
 export const saveApiSettings = async (settings) => {
@@ -31,7 +31,7 @@ export const saveApiSettings = async (settings) => {
 };
 
 export const fetchProfiles = async () => {
-  return await fetchAppData('profiles', []);
+  return await fetchAppData('profiles', {});
 };
 
 export const saveProfiles = async (profiles) => {
