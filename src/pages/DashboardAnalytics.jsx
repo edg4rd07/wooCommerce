@@ -3,10 +3,10 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, 
   Title, Tooltip, Legend, Filler 
 } from 'chart.js';
-import { Line, Doughnut } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import { Calendar, Download, Store, User, TrendingUp, DollarSign, ShoppingBag, PieChart, Globe, Truck, Factory, ArrowRight, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchOrders, getWcConfig } from '../services/api';
+import { fetchOrders, getWcConfig, fetchCustomStatuses } from '../services/api';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -24,6 +24,7 @@ const DashboardAnalytics = () => {
   
   // States para datos reales
   const [orders, setOrders] = useState([]);
+  const [customStatuses, setCustomStatuses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -67,9 +68,13 @@ const DashboardAnalytics = () => {
         }
       }
 
-      // Traemos pedidos filtrados por fecha desde el servidor
-      const realOrders = await fetchOrders({ perPage: 100, after, before });
+      // Traemos pedidos y estados personalizados
+      const [realOrders, dbCustomStatuses] = await Promise.all([
+        fetchOrders({ perPage: 100, after, before }),
+        fetchCustomStatuses()
+      ]);
       setOrders(realOrders);
+      setCustomStatuses(Array.isArray(dbCustomStatuses) ? dbCustomStatuses : []);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -140,6 +145,29 @@ const DashboardAnalytics = () => {
     };
   }, [orders, selectedStore, selectedCashier]);
 
+  // Count orders per WooCommerce status
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    orders.forEach(o => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
+
+  const WC_STATUS_META = [
+    { value: 'pending',    label: 'Pendiente',  color: '#94a3b8' },
+    { value: 'processing', label: 'Procesando', color: '#6366f1' },
+    { value: 'on-hold',   label: 'En Espera',   color: '#f59e0b' },
+    { value: 'completed', label: 'Completado',  color: '#10b981' },
+    { value: 'cancelled', label: 'Cancelado',   color: '#ef4444' },
+    { value: 'refunded',  label: 'Reembolsado', color: '#8b5cf6' },
+    { value: 'failed',    label: 'Fallido',     color: '#dc2626' },
+  ];
+
+  const allStatusMeta = useMemo(() => {
+    return [...WC_STATUS_META, ...customStatuses];
+  }, [customStatuses]);
+
   // Extraer cajeros y sucursales únicos
   const { uniqueCashiers, uniqueStores } = useMemo(() => {
     const cashiers = new Set();
@@ -183,17 +211,7 @@ const DashboardAnalytics = () => {
     };
   }, [metrics]);
 
-  // Datos dummy para línea de tiempo (idealmente agruparías 'orders' por fecha aquí)
-  const salesData = {
-    labels: ['1', '2', '3', '4', '5', 'Últimos Pedidos'],
-    datasets: [{
-      label: 'Ventas (Web + POS)',
-      data: metrics ? [0, metrics.totalSales*0.2, metrics.totalSales*0.5, metrics.totalSales*0.8, metrics.totalSales*0.9, metrics.totalSales] : [0,0,0,0,0,0],
-      borderColor: '#6366f1',
-      backgroundColor: 'rgba(99, 102, 241, 0.2)',
-      fill: true, tension: 0.4, pointBackgroundColor: '#6366f1'
-    }]
-  };
+  // Dummy line is removed — status chart is now real data
 
   return (
     <div className="page-content animate-fade-in">
@@ -342,10 +360,28 @@ const DashboardAnalytics = () => {
 
           {/* GRAFICOS */}
           <div className="charts-grid" style={{ marginBottom: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            {/* Resumen de estados de pedidos WooCommerce */}
             <div className="chart-container glass-panel">
-              <h3 style={{ marginBottom: '20px', color: 'var(--text-main)', fontSize: '1rem' }}>Volumen (Ventas Filtradas)</h3>
-              <div style={{ height: '260px' }}>
-                <Line data={salesData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
+              <h3 style={{ marginBottom: '20px', color: 'var(--text-main)', fontSize: '1rem' }}>Resumen por Estado de Pedido</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {allStatusMeta.filter(s => (statusCounts[s.value] || 0) > 0).map(s => (
+                  <div
+                    key={s.value}
+                    onClick={() => navigate('/orders')}
+                    className="interactive-card"
+                    style={{
+                      padding: '12px 14px', borderRadius: '10px', cursor: 'pointer',
+                      background: `${s.color}12`, border: `1px solid ${s.color}30`,
+                      display: 'flex', alignItems: 'center', gap: '10px'
+                    }}
+                  >
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: s.color }}>{statusCounts[s.value] || 0}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="chart-container glass-panel">

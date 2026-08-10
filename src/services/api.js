@@ -63,6 +63,33 @@ export const saveLog = async (logData) => {
   } catch(e) { console.error('Error saving log', e); return false; }
 };
 
+export const fetchCustomStatuses = async () => {
+  try {
+    const res = await fetch('/api/custom-statuses');
+    if (res.ok) return await res.json();
+  } catch(e) { console.error('Error fetching custom statuses', e); }
+  return [];
+};
+
+export const saveCustomStatuses = async (statuses) => {
+  try {
+    const res = await fetch('/api/custom-statuses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(statuses)
+    });
+    return res.ok;
+  } catch(e) { console.error('Error saving custom statuses', e); return false; }
+};
+
+export const checkManualAvailability = async (productId) => {
+  try {
+    const res = await fetch(`/api/manuals/${productId}`);
+    if (res.ok) return await res.json();
+  } catch(e) { console.error('Error fetching manual availability', e); }
+  return { image: null, video: null };
+};
+
 const wcFetch = async (path, options = {}) => {
   const config = await getWcConfig();
   if (!config) throw new Error('API Credentials not configured');
@@ -178,23 +205,61 @@ export const fetchOrders = async (params = {}) => {
     }
     
     // Determine internal custom states (Production / Delivery) using WooCommerce Meta Data
-    const prodMeta = order.meta_data.find(m => m.key === 'derp_production_status');
     const delivMeta = order.meta_data.find(m => m.key === 'derp_delivery_status');
-    const prodUserMeta = order.meta_data.find(m => m.key === 'derp_production_user');
-    const prodStartMeta = order.meta_data.find(m => m.key === 'derp_production_start');
-    
-    const productionStatus = prodMeta ? prodMeta.value : 'pending'; // pending, in_progress, completed
     const deliveryStatus = delivMeta ? delivMeta.value : 'pending'; // pending, en_route, delivered
-    const productionUser = prodUserMeta ? prodUserMeta.value : null;
-    const productionStart = prodStartMeta ? prodStartMeta.value : null;
     
     // Formatting
     const dateObj = new Date(order.date_created);
     const formattedDate = `${dateObj.getDate()} ${dateObj.toLocaleString('es-ES', { month: 'short' })} ${dateObj.getFullYear()}`;
     const requiresDelivery = order.shipping_lines && order.shipping_lines.length > 0 && order.shipping_lines[0].method_id !== 'local_pickup';
 
-    // Materials logic (simplified: extracting from line items names)
-    const materials = order.line_items.map(item => `${item.quantity}x ${item.name}`);
+    // Item-level production tracking
+    let itemsCompleted = 0;
+    let itemsInProgress = 0;
+    const totalItems = order.line_items.length;
+
+    const productionItems = order.line_items.map(item => {
+      // Look for meta field derp_prod_item_{id} on the order
+      const itemProdMeta = order.meta_data.find(m => m.key === `derp_prod_item_${item.id}`);
+      let prodData = { status: 'pending', user: null, start: null };
+      
+      if (itemProdMeta && itemProdMeta.value) {
+        try {
+          prodData = JSON.parse(itemProdMeta.value);
+        } catch (e) {}
+      }
+
+      if (prodData.status === 'completed') itemsCompleted++;
+      else if (prodData.status === 'in_progress') itemsInProgress++;
+
+      return {
+        itemId: item.id,
+        productId: item.product_id,
+        name: item.name,
+        quantity: item.quantity,
+        productionStatus: prodData.status || 'pending',
+        productionUser: prodData.user || null,
+        productionStart: prodData.start || null
+      };
+    });
+
+    let dynamicProductionStatus = 'pending';
+    if (totalItems > 0) {
+      if (itemsCompleted === totalItems) {
+        dynamicProductionStatus = 'completed';
+      } else if (itemsInProgress > 0 || itemsCompleted > 0) {
+        dynamicProductionStatus = 'in_progress';
+      }
+    }
+
+    // Parse delivery date from customer note (e.g., 2026-08-08 9:00)
+    let deliveryDateTime = null;
+    if (order.customer_note) {
+      const match = order.customer_note.match(/(\d{4}-\d{2}-\d{2}\s\d{1,2}:\d{2})/);
+      if (match) {
+        deliveryDateTime = match[1];
+      }
+    }
 
     // Detail Items for the Modal
     const itemsDetail = order.line_items.map(item => ({
@@ -221,11 +286,11 @@ export const fetchOrders = async (params = {}) => {
       rawCashierId: type === 'pos' && cashierMeta ? String(cashierMeta.value) : null,
       rawStoreId: type === 'pos' && registerMeta ? String(registerMeta.value) : null,
       requiresDelivery: requiresDelivery,
-      productionStatus: productionStatus,
+      deliveryDateTime: deliveryDateTime,
+      customerNote: order.customer_note || '',
+      productionStatus: dynamicProductionStatus,
       deliveryStatus: deliveryStatus,
-      productionUser: productionUser,
-      productionStart: productionStart,
-      materials: materials,
+      productionItems: productionItems,
       itemsDetail: itemsDetail
     };
   });
@@ -246,6 +311,10 @@ export const updateOrderMeta = async (orderId, metaKey, metaValue) => {
   });
 };
 
+export const updateProductionItemStatus = async (orderId, itemId, data) => {
+  return await updateOrderMeta(orderId, `derp_prod_item_${itemId}`, JSON.stringify(data));
+};
+
 export const updateOrderMultipleMeta = async (orderId, metaArray) => {
   // Expects metaArray like: [{key: 'a', value: '1'}, {key: 'b', value: '2'}]
   return await wcFetch(`/orders/${orderId}`, {
@@ -255,3 +324,14 @@ export const updateOrderMultipleMeta = async (orderId, metaArray) => {
     })
   });
 };
+
+export const updateOrderStatus = async (orderId, newStatus) => {
+  // WooCommerce REST API requires statuses without the 'wc-' prefix
+  const cleanStatus = newStatus.startsWith('wc-') ? newStatus.substring(3) : newStatus;
+  
+  return await wcFetch(`/orders/${orderId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: cleanStatus })
+  });
+};
+

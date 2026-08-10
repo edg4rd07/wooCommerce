@@ -11,6 +11,7 @@ import ProductionBoard from './pages/ProductionBoard';
 import DeliveryModule from './pages/DeliveryModule';
 import OrdersList from './pages/OrdersList';
 import ConnectionSettings from './pages/ConnectionSettings';
+import CustomStatusSettings from './pages/CustomStatusSettings';
 import './App.css';
 
 const Sidebar = () => {
@@ -72,6 +73,10 @@ const Sidebar = () => {
               <span>Mapeo Zapier</span>
             </Link>
             <div style={{ margin: '16px 0', borderTop: '1px solid var(--border-color)' }}></div>
+            <Link to="/custom-status" className={`nav-item ${location.pathname === '/custom-status' ? 'active' : ''}`}>
+              <Settings size={20} color="var(--primary)" />
+              <span>Estados Custom</span>
+            </Link>
             <Link to="/api-connection" className={`nav-item ${location.pathname === '/api-connection' ? 'active' : ''}`}>
               <Settings size={20} color="var(--accent-warning)" />
               <span style={{ color: 'var(--text-main)' }}>Conexión API</span>
@@ -139,6 +144,12 @@ const AppContent = () => {
           <Route path="/api-connection" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <ConnectionSettings />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/custom-status" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <CustomStatusSettings />
             </ProtectedRoute>
           } />
           

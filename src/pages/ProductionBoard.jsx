@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Factory, Search, CheckCircle, Clock, Package, RefreshCw, User, Timer } from 'lucide-react';
-import { fetchOrders, updateOrderMeta, updateOrderMultipleMeta, getWcConfig, saveLog } from '../services/api';
+import { createPortal } from 'react-dom';
+import { Factory, Search, CheckCircle, Clock, Package, RefreshCw, User, Timer, Image as ImageIcon, Video, X, Maximize, Minimize, CalendarClock } from 'lucide-react';
+import { fetchOrders, updateProductionItemStatus, getWcConfig, saveLog, checkManualAvailability } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const ElapsedTimer = ({ startTime }) => {
@@ -31,13 +32,130 @@ const ElapsedTimer = ({ startTime }) => {
   return <span>{elapsed || '00:00:00'}</span>;
 };
 
+const ProductionItem = ({ item, order, user, isUpdating, handleStartProductionClick, handleCompleteProduction }) => {
+  const [manual, setManual] = useState({ image: null, video: null });
+  const [mediaModal, setMediaModal] = useState(null); // null, 'image', or 'video'
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (item.productionStatus === 'in_progress') {
+      checkManualAvailability(item.productId).then(setManual);
+    }
+  }, [item.productionStatus, item.productId]);
+
+  const isAssignedToOther = user.role !== 'admin' && item.productionUser && item.productionUser !== user.name;
+
+  return (
+    <>
+      <div style={{ 
+        background: 'var(--bg-surface)', padding: '12px', borderRadius: '6px', 
+        borderLeft: `3px solid ${
+          item.productionStatus === 'completed' ? 'var(--accent-success)' :
+          item.productionStatus === 'in_progress' ? 'var(--primary)' : 'var(--accent-warning)'
+        }` 
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+          <div style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>ID: {item.productId}</span>
+            {item.quantity}x {item.name}
+          </div>
+          
+          {item.productionStatus === 'completed' && (
+            <CheckCircle size={16} color="var(--accent-success)" style={{ flexShrink: 0, marginTop: '2px' }} />
+          )}
+        </div>
+        
+        {item.productionStatus === 'in_progress' && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: '6px', padding: '6px 8px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-main)' }}>
+              <User size={12} color="var(--primary)" /> {item.productionUser}
+            </div>
+            {item.productionStart && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--accent-warning)', fontWeight: '600' }}>
+                <Timer size={12} /> <ElapsedTimer startTime={item.productionStart} />
+              </div>
+            )}
+          </div>
+        )}
+        
+        {item.productionStatus === 'completed' && item.productionUser && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <User size={12} /> Producido por: {item.productionUser}
+          </div>
+        )}
+
+        {item.productionStatus === 'in_progress' && !isAssignedToOther && (manual.image || manual.video) && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            {manual.image && (
+              <button onClick={() => setMediaModal('image')} style={btnStyle('var(--primary)', true)}>
+                <ImageIcon size={14} /> Ver Manual
+              </button>
+            )}
+            {manual.video && (
+              <button onClick={() => setMediaModal('video')} style={btnStyle('var(--accent-warning)', true)}>
+                <Video size={14} /> Ver Video
+              </button>
+            )}
+          </div>
+        )}
+
+        {!isAssignedToOther && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {item.productionStatus === 'pending' && (
+              <button onClick={() => handleStartProductionClick(order, item)} disabled={isUpdating} style={btnStyle('var(--accent-warning)')}>
+                {isUpdating ? '...' : 'Iniciar Este Ítem'}
+              </button>
+            )}
+            {item.productionStatus === 'in_progress' && (
+              <button onClick={() => handleCompleteProduction(order, item)} disabled={isUpdating} style={btnStyle('var(--primary)')}>
+                {isUpdating ? '...' : 'Terminar Ítem'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {mediaModal && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: isFullscreen ? '0' : '40px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: isFullscreen ? '100%' : '1200px', height: isFullscreen ? '100%' : '85vh', background: 'var(--bg-main)', borderRadius: isFullscreen ? '0' : '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+              <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+                {mediaModal === 'image' ? <ImageIcon size={24} color="var(--primary)"/> : <Video size={24} color="var(--accent-warning)"/>}
+                {mediaModal === 'image' ? 'Manual del Producto' : 'Video Tutorial'}
+              </h3>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <button onClick={() => setIsFullscreen(!isFullscreen)} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'white', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}>
+                  {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                  <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{isFullscreen ? 'Reducir' : 'Pantalla Completa'}</span>
+                </button>
+                <button onClick={() => { setMediaModal(null); setIsFullscreen(false); }} style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)', color: '#fca5a5', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', fontWeight: 'bold' }}>
+                  <X size={20} /> Cerrar
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: isFullscreen ? '0' : '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#050505', overflow: 'hidden' }}>
+              {mediaModal === 'image' ? (
+                <img src={manual.image} alt="Manual" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              ) : (
+                <video src={manual.video} controls autoPlay style={{ width: '100%', maxHeight: '100%' }} />
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 const ProductionBoard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null); // Will now hold "orderId-itemId"
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortByDelivery, setSortByDelivery] = useState(false);
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -73,25 +191,12 @@ const ProductionBoard = () => {
     }
   };
 
-  const handleUpdateStatus = async (rawId, newStatus) => {
-    setUpdatingId(rawId);
-    try {
-      await updateOrderMeta(rawId, 'derp_production_status', newStatus);
-      // Actualizamos UI localmente rápido
-      setOrders(prev => prev.map(o => o.rawId === rawId ? { ...o, productionStatus: newStatus } : o));
-    } catch (err) {
-      alert("Error actualizando pedido: " + err.message);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleCompleteProduction = async (order) => {
-    setUpdatingId(order.rawId);
+  const handleCompleteProduction = async (order, item) => {
+    setUpdatingId(`${order.rawId}-${item.itemId}`);
     try {
       // 1. Calculate elapsed time
       const endTime = new Date().toISOString();
-      const startTime = order.productionStart || new Date().toISOString();
+      const startTime = item.productionStart || new Date().toISOString();
       
       const startMs = new Date(startTime).getTime();
       const endMs = new Date(endTime).getTime();
@@ -103,18 +208,45 @@ const ProductionBoard = () => {
         type: 'production',
         orderId: order.id,
         rawOrderId: order.rawId,
+        itemId: item.itemId,
+        productId: item.productId,
+        productName: item.name,
         customer: order.customer,
-        user: order.productionUser || user.name,
+        user: item.productionUser || user.name,
         startTime: startTime,
         endTime: endTime,
         elapsedMinutes: diffMinutes
       });
 
-      // 3. Update order in WooCommerce
-      await updateOrderMeta(order.rawId, 'derp_production_status', 'completed');
+      // 3. Update order item meta in WooCommerce
+      await updateProductionItemStatus(order.rawId, item.itemId, {
+        status: 'completed',
+        user: item.productionUser,
+        start: startTime
+      });
       
-      // 4. Update UI
-      setOrders(prev => prev.map(o => o.rawId === order.rawId ? { ...o, productionStatus: 'completed' } : o));
+      // 4. Update UI dynamically
+      setOrders(prev => prev.map(o => {
+        if (o.rawId === order.rawId) {
+          const updatedItems = o.productionItems.map(i => 
+            i.itemId === item.itemId ? { ...i, productionStatus: 'completed' } : i
+          );
+          
+          // Re-calculate dynamic order status
+          const totalItems = updatedItems.length;
+          const completedCount = updatedItems.filter(i => i.productionStatus === 'completed').length;
+          const inProgressCount = updatedItems.filter(i => i.productionStatus === 'in_progress').length;
+          
+          let dynamicProductionStatus = 'pending';
+          if (totalItems > 0) {
+            if (completedCount === totalItems) dynamicProductionStatus = 'completed';
+            else if (inProgressCount > 0 || completedCount > 0) dynamicProductionStatus = 'in_progress';
+          }
+          
+          return { ...o, productionItems: updatedItems, productionStatus: dynamicProductionStatus };
+        }
+        return o;
+      }));
     } catch (err) {
       alert("Error terminando producción: " + err.message);
     } finally {
@@ -122,30 +254,40 @@ const ProductionBoard = () => {
     }
   };
 
-  const handleStartProductionClick = (order) => {
-    setSelectedOrderForStart(order);
+  const handleStartProductionClick = (order, item) => {
+    setSelectedOrderForStart({ order, item });
     setShowModal(true);
   };
 
   const confirmStartProduction = async () => {
     if(!selectedOrderForStart) return;
-    setUpdatingId(selectedOrderForStart.rawId);
+    const { order, item } = selectedOrderForStart;
+    
+    setUpdatingId(`${order.rawId}-${item.itemId}`);
     setShowModal(false);
     
     try {
       const isoStart = new Date().toISOString();
-      await updateOrderMultipleMeta(selectedOrderForStart.rawId, [
-        { key: 'derp_production_status', value: 'in_progress' },
-        { key: 'derp_production_user', value: user.name },
-        { key: 'derp_production_start', value: isoStart }
-      ]);
+      await updateProductionItemStatus(order.rawId, item.itemId, {
+        status: 'in_progress',
+        user: user.name,
+        start: isoStart
+      });
       
-      setOrders(prev => prev.map(o => o.rawId === selectedOrderForStart.rawId ? { 
-        ...o, 
-        productionStatus: 'in_progress', 
-        productionUser: user.name, 
-        productionStart: isoStart 
-      } : o));
+      setOrders(prev => prev.map(o => {
+        if (o.rawId === order.rawId) {
+          const updatedItems = o.productionItems.map(i => 
+            i.itemId === item.itemId ? { 
+              ...i, 
+              productionStatus: 'in_progress', 
+              productionUser: user.name, 
+              productionStart: isoStart 
+            } : i
+          );
+          return { ...o, productionItems: updatedItems, productionStatus: 'in_progress' };
+        }
+        return o;
+      }));
     } catch (err) {
       alert("Error iniciando producción: " + err.message);
     } finally {
@@ -163,9 +305,25 @@ const ProductionBoard = () => {
   const visibleOrders = filteredOrders.filter(o => {
     if (user?.role === 'admin') return true;
     if (o.productionStatus === 'pending') return true;
-    if (o.productionUser === user?.name) return true;
+    
+    // Si la orden ya está en progreso, verificar si el operario tiene ALGÚN ítem asignado a él, o si hay ítems pendientes de tomar
+    if (o.productionItems) {
+      const hasMyItems = o.productionItems.some(i => i.productionUser === user?.name);
+      const hasPendingItems = o.productionItems.some(i => i.productionStatus === 'pending');
+      return hasMyItems || hasPendingItems;
+    }
     return false;
   });
+
+  let sortedOrders = visibleOrders;
+  if (sortByDelivery) {
+    sortedOrders = [...visibleOrders].sort((a, b) => {
+      if (!a.deliveryDateTime && !b.deliveryDateTime) return 0;
+      if (!a.deliveryDateTime) return 1;
+      if (!b.deliveryDateTime) return -1;
+      return new Date(a.deliveryDateTime).getTime() - new Date(b.deliveryDateTime).getTime();
+    });
+  }
 
   return (
     <div className="page-content animate-fade-in" style={{ position: 'relative' }}>
@@ -185,6 +343,10 @@ const ProductionBoard = () => {
               background: 'var(--bg-surface)', color: 'white', outline: 'none'
             }} />
           </div>
+          <button onClick={() => setSortByDelivery(!sortByDelivery)} className={sortByDelivery ? "btn-primary" : ""} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', background: sortByDelivery ? 'var(--primary)' : 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'white', cursor: 'pointer' }}>
+            <CalendarClock size={18} />
+            {sortByDelivery ? 'Ordenado por Entrega' : 'Ordenar por Entrega'}
+          </button>
           <button onClick={loadOrders} disabled={isLoading} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px' }}>
             <RefreshCw size={18} className={isLoading ? 'spin' : ''} />
             Sincronizar
@@ -200,10 +362,10 @@ const ProductionBoard = () => {
         <div className="kanban-board" style={{ display: 'flex', gap: '24px', overflowX: 'auto', paddingBottom: '20px', minHeight: '600px' }}>
           {columns.map(col => {
             const Icon = col.icon;
-            const colOrders = visibleOrders.filter(o => o.productionStatus === col.id);
+            const colOrders = sortedOrders.filter(o => o.productionStatus === col.id);
             
             return (
-              <div key={col.id} className="kanban-column" style={{ flex: '1', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div key={col.id} className="kanban-column" style={{ flex: '1', minWidth: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="column-header glass-surface" style={{ padding: '16px', borderRadius: '12px', borderTop: `4px solid ${col.color}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
                     <Icon size={18} color={col.color} />
@@ -225,48 +387,33 @@ const ProductionBoard = () => {
                           <span style={{ fontWeight: 'bold', color: 'white' }}>{order.id}</span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{order.date}</span>
                         </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '12px' }}>{order.customer}</div>
-                        
-                        {/* Assignment Info */}
-                        {order.productionUser && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: '6px', padding: '8px', marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-main)' }}>
-                              <User size={14} color="var(--primary)" /> {order.productionUser}
-                            </div>
-                            {col.id === 'in_progress' && order.productionStart && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: 'var(--accent-warning)', fontWeight: '600' }}>
-                                <Timer size={14} /> <ElapsedTimer startTime={order.productionStart} />
-                              </div>
-                            )}
+                        {order.deliveryDateTime && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px', fontWeight: '600', background: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '4px', width: 'fit-content' }}>
+                            <CalendarClock size={14} /> Entrega: {order.deliveryDateTime}
                           </div>
                         )}
-
-                        <div className="materials-list" style={{ background: 'var(--bg-main)', padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Package size={14} /> Ítems a producir:
+                        <div style={{ fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '12px' }}>{order.customer}</div>
+                        
+                        <div className="materials-list" style={{ background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.85rem', color: 'white', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
+                            <Package size={16} /> Ítems a producir:
                           </div>
-                          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                            {order.materials.map((m, i) => <li key={i}>{m}</li>)}
-                          </ul>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {order.productionItems && order.productionItems.map(item => (
+                              <ProductionItem 
+                                key={item.itemId}
+                                item={item}
+                                order={order}
+                                user={user}
+                                isUpdating={updatingId === `${order.rawId}-${item.itemId}`}
+                                handleStartProductionClick={handleStartProductionClick}
+                                handleCompleteProduction={handleCompleteProduction}
+                              />
+                            ))}
+                          </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {col.id === 'pending' && (
-                            <button onClick={() => handleStartProductionClick(order)} disabled={updatingId === order.rawId} style={btnStyle(col.color)}>
-                              {updatingId === order.rawId ? 'Actualizando...' : 'Iniciar Producción'}
-                            </button>
-                          )}
-                          {col.id === 'in_progress' && (
-                            <button onClick={() => handleCompleteProduction(order)} disabled={updatingId === order.rawId} style={btnStyle(col.color)}>
-                              {updatingId === order.rawId ? 'Actualizando...' : 'Marcar Terminado'}
-                            </button>
-                          )}
-                          {col.id === 'completed' && (
-                            <div style={{ width: '100%', textAlign: 'center', fontSize: '0.85rem', color: 'var(--accent-success)' }}>
-                              Listo para logística
-                            </div>
-                          )}
-                        </div>
                       </div>
                     ))
                   )}
@@ -284,9 +431,11 @@ const ProductionBoard = () => {
             <Factory size={40} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
             <h2 style={{ marginBottom: '8px' }}>Iniciar Producción</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-              Estás a punto de iniciar la producción del pedido <strong>{selectedOrderForStart.id}</strong>. 
+              Producirás el ítem: <br/>
+              <strong style={{ color: 'white', display: 'block', margin: '8px 0' }}>{selectedOrderForStart.item.quantity}x {selectedOrderForStart.item.name}</strong>
+              Del pedido <strong>{selectedOrderForStart.order.id}</strong>.
               <br/><br/>
-              Será asignado al operario actual: <strong style={{ color: 'white' }}>{user.name}</strong>.
+              Este ítem será asignado al operario: <strong style={{ color: 'white' }}>{user.name}</strong>.
             </p>
             
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -309,9 +458,11 @@ const ProductionBoard = () => {
   );
 };
 
-const btnStyle = (color) => ({
-  width: '100%', padding: '8px', background: 'transparent', border: `1px solid ${color}`,
-  color: color, borderRadius: '6px', cursor: 'pointer', fontWeight: '500', transition: 'all 0.2s'
+const btnStyle = (color, isSubtle = false) => ({
+  width: '100%', padding: '6px', background: isSubtle ? `${color}20` : 'transparent', 
+  border: `1px solid ${isSubtle ? 'transparent' : color}`,
+  color: color, borderRadius: '6px', cursor: 'pointer', fontWeight: '500', 
+  transition: 'all 0.2s', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
 });
 
 export default ProductionBoard;

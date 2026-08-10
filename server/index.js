@@ -12,6 +12,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const MANUALES_DIR = path.join(path.dirname(__dirname), 'manuales');
+if (!fs.existsSync(MANUALES_DIR)) {
+  fs.mkdirSync(MANUALES_DIR);
+}
+app.use('/manuales', express.static(MANUALES_DIR));
+
 // Initialize DB if not exists
 if (!fs.existsSync(DB_FILE)) {
   const initialData = {
@@ -25,7 +31,8 @@ if (!fs.existsSync(DB_FILE)) {
       'produccion': { id: 'produccion', name: 'Equipo de Producción', role: 'production', pin: '1111' },
       'logistica': { id: 'logistica', name: 'Repartidor', role: 'delivery', pin: '2222' }
     },
-    logs: []
+    logs: [],
+    customStatuses: []
   };
   fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
 }
@@ -78,6 +85,47 @@ app.post('/api/logs', (req, res) => {
   db.logs.push(newLog);
   writeDB(db);
   res.json({ success: true, log: newLog });
+});
+
+// Custom Statuses Endpoints
+app.get('/api/custom-statuses', (req, res) => {
+  const db = readDB();
+  res.json(db.customStatuses || []);
+});
+
+app.post('/api/custom-statuses', (req, res) => {
+  const db = readDB();
+  db.customStatuses = req.body;
+  writeDB(db);
+  res.json({ success: true, customStatuses: db.customStatuses });
+});
+
+// Manuals Endpoint
+app.get('/api/manuals/:productId', (req, res) => {
+  const { productId } = req.params;
+  
+  try {
+    const files = fs.readdirSync(MANUALES_DIR);
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const videoExtensions = ['.mp4', '.mov', '.webm'];
+    
+    const imageFile = files.find(f => {
+      const p = f.split('.');
+      return p[0] === productId && imageExtensions.includes('.' + p[p.length - 1].toLowerCase());
+    });
+    
+    const videoFile = files.find(f => {
+      const p = f.split('.');
+      return p[0] === productId && videoExtensions.includes('.' + p[p.length - 1].toLowerCase());
+    });
+
+    res.json({
+      image: imageFile ? `/manuales/${imageFile}` : null,
+      video: videoFile ? `/manuales/${videoFile}` : null
+    });
+  } catch (err) {
+    res.json({ image: null, video: null });
+  }
 });
 
 const PORT = 3001;

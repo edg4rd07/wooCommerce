@@ -25,11 +25,11 @@ const Reports = () => {
 
   const filteredLogs = useMemo(() => {
     const now = new Date();
-    
+
     return logs.filter(log => {
       const logDate = new Date(log.endTime);
-      
-      switch(filterType) {
+
+      switch (filterType) {
         case 'today':
           return logDate.toDateString() === now.toDateString();
         case 'yesterday':
@@ -47,9 +47,9 @@ const Reports = () => {
         case 'custom':
           if (!customRange.start || !customRange.end) return true;
           const s = new Date(customRange.start);
-          s.setHours(0,0,0,0);
+          s.setHours(0, 0, 0, 0);
           const e = new Date(customRange.end);
-          e.setHours(23,59,59,999);
+          e.setHours(23, 59, 59, 999);
           return logDate >= s && logDate <= e;
         default:
           return true; // all
@@ -68,19 +68,19 @@ const Reports = () => {
   const formatDate = (isoString) => {
     if (!isoString) return '-';
     const d = new Date(isoString);
-    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   const exportPDF = () => {
     const doc = new jsPDF();
-    
+
     doc.setFontSize(18);
     doc.text('Reporte de Producción - Flor & Fresa', 14, 22);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     let filterText = '';
-    switch(filterType) {
+    switch (filterType) {
       case 'today': filterText = 'Hoy'; break;
       case 'yesterday': filterText = 'Ayer'; break;
       case 'week': filterText = 'Últimos 7 días'; break;
@@ -140,7 +140,7 @@ const Reports = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
           <Filter size={18} /> <strong>Filtrar por Fecha:</strong>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'today', label: 'Hoy' },
@@ -172,9 +172,9 @@ const Reports = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-main)', padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
             <Calendar size={16} color="var(--text-muted)" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} style={dateInputStyle} />
+              <input type="date" value={customRange.start} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} style={dateInputStyle} />
               <span>hasta</span>
-              <input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} style={dateInputStyle} />
+              <input type="date" value={customRange.end} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} style={dateInputStyle} />
             </div>
           </div>
         )}
