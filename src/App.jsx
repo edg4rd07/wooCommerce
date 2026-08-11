@@ -104,6 +104,20 @@ const Sidebar = () => {
 
 const AppContent = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const isPrintView = location.pathname === '/print-checklist';
+  
+  if (isPrintView) {
+    return (
+      <Routes>
+        <Route path="/print-checklist" element={
+          <ProtectedRoute allowedRoles={['admin', 'production']}>
+            <PrintChecklist />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    );
+  }
   
   return (
     <div className={user ? "app-layout" : "login-layout"}>

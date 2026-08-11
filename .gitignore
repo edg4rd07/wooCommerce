@@ -25,3 +25,4 @@ dist-ssr
 
 # Database and Credentials
 server/database.json
+manuales/
