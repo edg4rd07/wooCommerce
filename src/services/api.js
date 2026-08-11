@@ -261,9 +261,9 @@ export const fetchOrders = async (params = {}) => {
     // Parse delivery date from customer note (e.g., 2026-08-08 9:00)
     let deliveryDateTime = null;
     if (order.customer_note) {
-      const match = order.customer_note.match(/(\d{4}-\d{2}-\d{2}\s\d{1,2}:\d{2})/);
+      const match = order.customer_note.match(/(\d{4}-\d{2}-\d{2})(?:\s(\d{1,2}:\d{2}))?/);
       if (match) {
-        deliveryDateTime = match[1];
+        deliveryDateTime = match[0];
       }
     }
 

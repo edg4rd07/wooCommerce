@@ -32,7 +32,60 @@ const ElapsedTimer = ({ startTime }) => {
   return <span>{elapsed || '00:00:00'}</span>;
 };
 
-const ProductionItem = ({ item, order, user, isUpdating, handleStartProductionClick, handleCompleteProduction }) => {
+const DeliveryCountdown = ({ targetDate }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!targetDate) return;
+    
+    const update = () => {
+      const hasTime = targetDate.length > 10;
+      let target = new Date(targetDate);
+      
+      if (!hasTime) {
+         target.setHours(23, 59, 59);
+      }
+      
+      const now = new Date();
+      const diffMs = target.getTime() - now.getTime();
+      
+      if (diffMs < 0) {
+        setTimeLeft('Vencido');
+        return;
+      }
+      
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (!hasTime) {
+        if (diffDays === 0) setTimeLeft('Entrega Hoy');
+        else if (diffDays === 1) setTimeLeft('Entrega Mañana');
+        else setTimeLeft(`Faltan ${diffDays} días`);
+      } else {
+        if (diffDays > 0) setTimeLeft(`Faltan ${diffDays}d ${diffHours}h`);
+        else if (diffHours > 0) setTimeLeft(`Faltan ${diffHours}h ${diffMinutes}m`);
+        else setTimeLeft(`Faltan ${diffMinutes}m`);
+      }
+    };
+    
+    update();
+    const int = setInterval(update, 60000);
+    return () => clearInterval(int);
+  }, [targetDate]);
+
+  const color = timeLeft === 'Vencido' || (!timeLeft.includes('d') && timeLeft.includes('h') && parseInt(timeLeft.match(/\d+/)?.[0]) < 2) 
+    ? 'var(--accent-danger)' 
+    : 'var(--accent-warning)';
+
+  return (
+    <span style={{ color, fontWeight: 'bold' }}>
+      {timeLeft} ({targetDate})
+    </span>
+  );
+};
+
+const ProductionItem = ({ item, order, user, isUpdating, handleStartProductionClick, handleOpenChecklist }) => {
   const [manual, setManual] = useState({ image: null, video: null });
   const [mediaModal, setMediaModal] = useState(null); // null, 'image', or 'video'
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -388,8 +441,8 @@ const ProductionBoard = () => {
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{order.date}</span>
                         </div>
                         {order.deliveryDateTime && (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px', fontWeight: '600', background: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '4px', width: 'fit-content' }}>
-                            <CalendarClock size={14} /> Entrega: {order.deliveryDateTime}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '20px', fontSize: '0.8rem', border: '1px solid rgba(245, 158, 11, 0.2)', marginBottom: '8px' }}>
+                            <CalendarClock size={14} /> <DeliveryCountdown targetDate={order.deliveryDateTime} />
                           </div>
                         )}
                         <div style={{ fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '12px' }}>{order.customer}</div>
