@@ -10,6 +10,7 @@ import MappingSettings from './pages/MappingSettings';
 import ProductionBoard from './pages/ProductionBoard';
 import DeliveryModule from './pages/DeliveryModule';
 import OrdersList from './pages/OrdersList';
+import PrintChecklist from './pages/PrintChecklist';
 import ConnectionSettings from './pages/ConnectionSettings';
 import CustomStatusSettings from './pages/CustomStatusSettings';
 import './App.css';
