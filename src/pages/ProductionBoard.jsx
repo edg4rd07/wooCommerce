@@ -160,7 +160,7 @@ const ProductionItem = ({ item, order, user, isUpdating, handleStartProductionCl
               </button>
             )}
             {item.productionStatus === 'in_progress' && (
-              <button onClick={() => handleCompleteProduction(order, item)} disabled={isUpdating} style={btnStyle('var(--primary)')}>
+              <button onClick={() => handleOpenChecklist(order, item)} disabled={isUpdating} style={btnStyle('var(--primary)')}>
                 {isUpdating ? '...' : 'Terminar Ítem'}
               </button>
             )}
