@@ -461,7 +461,7 @@ const ProductionBoard = () => {
                                 user={user}
                                 isUpdating={updatingId === `${order.rawId}-${item.itemId}`}
                                 handleStartProductionClick={handleStartProductionClick}
-                                handleCompleteProduction={handleCompleteProduction}
+                                handleOpenChecklist={handleOpenChecklist}
                               />
                             ))}
                           </div>
