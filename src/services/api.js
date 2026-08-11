@@ -76,12 +76,12 @@ export const checkManualAvailability = async (productId) => {
     
     const imageFile = files.find(f => {
       const p = f.name.split('.');
-      return p[0] === productId && imageExtensions.includes('.' + p[p.length - 1].toLowerCase());
+      return p[0] === String(productId) && imageExtensions.includes('.' + p[p.length - 1].toLowerCase());
     });
     
     const videoFile = files.find(f => {
       const p = f.name.split('.');
-      return p[0] === productId && videoExtensions.includes('.' + p[p.length - 1].toLowerCase());
+      return p[0] === String(productId) && videoExtensions.includes('.' + p[p.length - 1].toLowerCase());
     });
 
     const getUrl = (file) => file ? supabase.storage.from('manuales').getPublicUrl(file.name).data.publicUrl : null;
