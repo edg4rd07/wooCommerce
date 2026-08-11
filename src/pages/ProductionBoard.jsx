@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Factory, Search, CheckCircle, Clock, Package, RefreshCw, User, Timer, Image as ImageIcon, Video, X, Maximize, Minimize, CalendarClock } from 'lucide-react';
 import { fetchOrders, updateProductionItemStatus, getWcConfig, saveLog, checkManualAvailability } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { CHECKLIST_SECTIONS } from './PrintChecklist';
 
 const ElapsedTimer = ({ startTime }) => {
   const [elapsed, setElapsed] = useState('');
@@ -213,6 +214,8 @@ const ProductionBoard = () => {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedOrderForStart, setSelectedOrderForStart] = useState(null);
+  const [checklistModal, setChecklistModal] = useState({ isOpen: false, order: null, item: null });
+  const [checkedChecklistItems, setCheckedChecklistItems] = useState([]);
 
   const [columns] = useState([
     { id: 'pending', title: 'Pendientes por Fabricar', color: 'var(--accent-warning)', icon: Clock },
@@ -305,6 +308,34 @@ const ProductionBoard = () => {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleOpenChecklist = (order, item) => {
+    setChecklistModal({ isOpen: true, order, item });
+    setCheckedChecklistItems([]);
+  };
+
+  const handleFinalizeAndPrint = async () => {
+    const { order, item } = checklistModal;
+    const printData = {
+      orderId: order.id,
+      date: order.date,
+      customer: order.customer,
+      address: order.address,
+      phone: order.phone,
+      checkedItems: checkedChecklistItems
+    };
+    sessionStorage.setItem('print_checklist_data', JSON.stringify(printData));
+    
+    await handleCompleteProduction(order, item);
+    window.open('/print-checklist', '_blank');
+    setChecklistModal({ isOpen: false, order: null, item: null });
+  };
+  
+  const toggleChecklistItem = (itemText) => {
+    setCheckedChecklistItems(prev => 
+      prev.includes(itemText) ? prev.filter(i => i !== itemText) : [...prev, itemText]
+    );
   };
 
   const handleStartProductionClick = (order, item) => {
@@ -501,6 +532,59 @@ const ProductionBoard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {checklistModal.isOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-main)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 30px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-main)', zIndex: 10 }}>
+              <div>
+                <h2 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CheckCircle color="var(--primary)" /> Checklist de Producción
+                </h2>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  Pedido {checklistModal.order?.id} - {checklistModal.item?.name}
+                </div>
+              </div>
+              <button onClick={() => setChecklistModal({ isOpen: false, order: null, item: null })} className="btn-action" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', width: 'auto', padding: '8px 16px' }}>
+                Cancelar
+              </button>
+            </div>
+            
+            <div style={{ padding: '30px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+              {CHECKLIST_SECTIONS.map((sec, idx) => (
+                <div key={idx} style={{ background: 'var(--bg-surface)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <h4 style={{ color: 'var(--primary)', margin: '0 0 15px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                    {sec.title}
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {sec.items.map((item, i) => {
+                      const isChecked = checkedChecklistItems.includes(item);
+                      return (
+                        <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.9rem', lineHeight: '1.4' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={() => toggleChecklistItem(item)}
+                            style={{ marginTop: '3px', accentColor: 'var(--primary)', width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          <span style={{ color: isChecked ? 'white' : 'var(--text-muted)', transition: 'color 0.2s' }}>{item}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '20px 30px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: 'var(--bg-main)', zIndex: 10 }}>
+              <button onClick={handleFinalizeAndPrint} className="btn-action" style={{ background: 'var(--primary)', color: 'white', padding: '12px 24px', fontSize: '1rem', width: 'auto' }}>
+                <Package size={18} /> Finalizar Producción e Imprimir
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
