@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Edit, Eye, Store, User, Globe, Truck, ArrowRight, RefreshCw, AlertCircle, X, MapPin, Phone, Package, CreditCard, Mail, CheckCircle, Calendar, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchOrders, getWcConfig, updateOrderStatus, fetchCustomStatuses } from '../services/api';
+import { fetchOrders, getWcConfig, updateOrderStatus, fetchCustomStatuses, registerCreditPayment } from '../services/api';
 
 const WC_STATUSES = [
   { value: 'pending',    label: 'Pendiente',    color: '#94a3b8' },
@@ -34,6 +34,12 @@ const OrdersList = () => {
   const [editingStatus, setEditingStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Credit settlement state
+  const [settleMode, setSettleMode] = useState(false);
+  const [settleAmount, setSettleAmount] = useState('');
+  const [settleMethod, setSettleMethod] = useState('Efectivo');
+  const [isSettling, setIsSettling] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -68,6 +74,30 @@ const OrdersList = () => {
     }
   };
 
+  const handleSettleCredit = async () => {
+    if (!selectedOrder || !settleAmount || isNaN(settleAmount) || settleAmount <= 0) {
+      alert("Por favor ingresa un monto válido.");
+      return;
+    }
+    setIsSettling(true);
+    try {
+      await registerCreditPayment(selectedOrder.rawId, settleAmount, settleMethod, selectedOrder.customer);
+      setSettleMode(false);
+      setSettleAmount('');
+      // Reload orders to reflect the new pendingAmount
+      await loadOrders();
+      // Update selected order view
+      setSelectedOrder(prev => ({
+        ...prev,
+        pendingAmount: Math.max(0, prev.pendingAmount - parseFloat(settleAmount))
+      }));
+    } catch (err) {
+      alert("Error al registrar abono: " + err.message);
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
   const allStatuses = [...WC_STATUSES, ...customStatuses];
 
   const openView = (order) => {
@@ -75,6 +105,7 @@ const OrdersList = () => {
     setEditMode(false);
     setSaveSuccess(false);
     setEditingStatus(order.status);
+    setSettleMode(false);
   };
 
   const openEdit = (order) => {
@@ -385,8 +416,43 @@ const OrdersList = () => {
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><CreditCard size={12} /> {selectedOrder.paymentMethod}</div>
                   
                   {selectedOrder.pendingAmount > 0 && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontWeight: 'bold' }}>
-                      <CreditCard size={12} /> Pendiente de pago: ${selectedOrder.pendingAmount.toFixed(2)}
+                    <div style={{ fontSize: '0.82rem', color: 'var(--accent-danger)', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', padding: '12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                        <CreditCard size={14} /> Pendiente de pago: ${selectedOrder.pendingAmount.toFixed(2)}
+                      </div>
+                      
+                      {!settleMode ? (
+                        <button onClick={() => { setSettleMode(true); setSettleAmount(selectedOrder.pendingAmount); }} className="btn-primary" style={{ background: 'var(--accent-danger)', padding: '6px 12px', fontSize: '0.85rem' }}>
+                          Abonar / Saldar Crédito
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={settleAmount} 
+                            onChange={(e) => setSettleAmount(e.target.value)}
+                            placeholder="Monto a abonar"
+                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white' }}
+                          />
+                          <select 
+                            value={settleMethod} 
+                            onChange={(e) => setSettleMethod(e.target.value)}
+                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'white' }}
+                          >
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Transferencia">Transferencia</option>
+                          </select>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={handleSettleCredit} disabled={isSettling} className="btn-primary" style={{ flex: 1, padding: '6px' }}>
+                              {isSettling ? 'Guardando...' : 'Confirmar Abono'}
+                            </button>
+                            <button onClick={() => setSettleMode(false)} className="btn-primary" style={{ flex: 1, padding: '6px', background: 'var(--bg-surface)' }}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   

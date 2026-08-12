@@ -42,6 +42,23 @@ export const fetchLogs = async () => {
   return await fetchAppData('logs', []);
 };
 
+export const fetchCreditPayments = async () => {
+  return await fetchAppData('credit_payments', []);
+};
+
+export const registerCreditPayment = async (orderId, amount, method, customerName) => {
+  const payments = await fetchCreditPayments();
+  payments.push({
+    id: Date.now().toString(),
+    orderId: String(orderId),
+    amount: parseFloat(amount),
+    method,
+    customerName,
+    date: new Date().toISOString()
+  });
+  return await saveAppData('credit_payments', payments);
+};
+
 export const saveLog = async (logEntry) => {
   try {
     const logs = await fetchAppData('logs', []);
@@ -162,8 +179,12 @@ export const fetchOrders = async (params = {}) => {
   // Pre-fetch metadata (cache prevents multiple network calls)
   await fetchPosMetadata();
 
-  const orders = await wcFetch(`/orders${query}`);
-  
+  const [orders, creditPayments] = await Promise.all([
+    wcFetch(`/orders${query}`),
+    fetchCreditPayments()
+  ]);
+
+  if (!orders) return [];
   return orders.map(order => {
     // Determine POS vs Web
     const posMeta = order.meta_data.find(m => m.key === '_yith_pos_register' || m.key === '_yith_pos_cashier');
@@ -273,11 +294,26 @@ export const fetchOrders = async (params = {}) => {
       }
     }
 
+    // Payment Splits for Daily Closure
+    let paymentSplits = { cash: 0, card: 0, transfer: 0, credit: 0 };
+    order.meta_data.forEach(m => {
+      if (m.key === '_yith_pos_gateway_yith_pos_cash_gateway') paymentSplits.cash += parseFloat(m.value) || 0;
+      if (m.key === '_yith_pos_gateway_yith_pos_chip_pin_gateway') paymentSplits.card += parseFloat(m.value) || 0;
+      if (m.key === '_yith_pos_gateway_bacs') paymentSplits.transfer += parseFloat(m.value) || 0;
+      if (m.key === '_yith_pos_gateway_credito') paymentSplits.credit += parseFloat(m.value) || 0;
+    });
+
     // Check for split payment (credit)
     let creditAmount = 0;
     const creditMeta = order.meta_data.find(m => m.key === '_yith_pos_gateway_credito');
     if (creditMeta) {
       creditAmount = parseFloat(creditMeta.value) || 0;
+      
+      const paidForThisOrder = creditPayments
+        .filter(p => p.orderId === String(order.id))
+        .reduce((sum, p) => sum + p.amount, 0);
+        
+      creditAmount = Math.max(0, creditAmount - paidForThisOrder);
     }
 
     // Detail Items for the Modal
@@ -306,6 +342,7 @@ export const fetchOrders = async (params = {}) => {
       rawStoreId: type === 'pos' && registerMeta ? String(registerMeta.value) : null,
       requiresDelivery: requiresDelivery,
       pendingAmount: creditAmount,
+      paymentSplits: paymentSplits,
       deliveryDateTime: deliveryDateTime,
       customerNote: order.customer_note || '',
       productionStatus: dynamicProductionStatus,

@@ -13,6 +13,7 @@ import OrdersList from './pages/OrdersList';
 import PrintChecklist from './pages/PrintChecklist';
 import ConnectionSettings from './pages/ConnectionSettings';
 import CustomStatusSettings from './pages/CustomStatusSettings';
+import CashRegister from './pages/CashRegister';
 import './App.css';
 
 const Sidebar = () => {
@@ -41,6 +42,10 @@ const Sidebar = () => {
             <Link to="/orders" className={`nav-item ${location.pathname === '/orders' ? 'active' : ''}`}>
               <ShoppingCart size={20} />
               <span>Pedidos POS</span>
+            </Link>
+            <Link to="/corte-caja" className={`nav-item ${location.pathname === '/corte-caja' ? 'active' : ''}`}>
+              <Landmark size={20} />
+              <span>Corte de Caja</span>
             </Link>
           </>
         )}
@@ -177,6 +182,12 @@ const AppContent = () => {
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Reports />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/corte-caja" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <CashRegister />
             </ProtectedRoute>
           } />
         </Routes>
