@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Truck, Factory, Settings, LogOut, Users, FileText } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Truck, Factory, Settings, LogOut, Users, FileText, Landmark } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
