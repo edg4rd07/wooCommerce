@@ -198,6 +198,126 @@ a { text-decoration: none; color: inherit; }
 .stat-card h3 { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
 .stat-card .stat-value { font-size: 2rem; font-weight: 700; margin: 8px 0; }
 .stat-trend { font-size: 0.85rem; font-weight: 500; }
+
+/* Mobile Optimizations (<= 768px) */
+@media (max-width: 768px) {
+  /* Layout: Convert Sidebar to Bottom Nav */
+  .app-layout {
+    flex-direction: column-reverse; /* Puts Sidebar at the bottom */
+  }
+
+  /* Sidebar styling for Bottom Nav */
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    padding: 0.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem); /* iOS safe area */
+    border-top: 1px solid var(--border-color);
+    border-right: none;
+    justify-content: space-around;
+    align-items: center;
+    background: var(--bg-card);
+    z-index: 100;
+  }
+
+  .logo-container {
+    display: none; /* Hide logo in mobile bottom nav */
+  }
+
+  .user-profile {
+    display: none; /* Hide user profile in bottom nav */
+  }
+
+  .nav-menu {
+    flex-direction: row;
+    justify-content: space-around;
+    width: 100%;
+    margin: 0;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    padding: 8px 4px;
+    gap: 4px;
+    font-size: 0.7rem;
+    text-align: center;
+  }
+
+  .nav-item span {
+    font-size: 0.65rem;
+  }
+
+  .nav-item:hover {
+    transform: translateY(-2px);
+  }
+
+  .nav-item.active {
+    border-left: none;
+    border-bottom: 3px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+  }
+
+  /* Main Content Adjustments */
+  .main-content {
+    padding: 1rem;
+    padding-top: env(safe-area-inset-top, 1rem);
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .header-actions > button, .header-actions .btn-primary {
+    flex: 1;
+    justify-content: center;
+    min-width: 140px;
+    font-size: 0.9rem;
+  }
+
+  /* Dashboard Stats Grid */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Kanban Boards Mobile Adjustments */
+  .kanban-board {
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    gap: 16px !important;
+  }
+
+  .kanban-column {
+    scroll-snap-align: center;
+    min-width: 85vw !important;
+  }
+  
+  /* Modals */
+  .glass-panel {
+    padding: 15px !important;
+    width: 95vw !important;
+  }
+}
+
 .stat-trend.positive { color: var(--accent-success); }
 .stat-trend.negative { color: var(--accent-danger); }
 
