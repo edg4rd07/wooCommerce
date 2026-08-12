@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Factory, Search, CheckCircle, Clock, Package, RefreshCw, User, Timer, Image as ImageIcon, Video, X, Maximize, Minimize, CalendarClock } from 'lucide-react';
+import { Factory, Search, CheckCircle, Clock, Package, RefreshCw, User, Timer, Image as ImageIcon, Video, X, Maximize, Minimize, CalendarClock, CreditCard } from 'lucide-react';
 import { fetchOrders, updateProductionItemStatus, getWcConfig, saveLog, checkManualAvailability } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { CHECKLIST_SECTIONS } from './PrintChecklist';
@@ -477,6 +477,12 @@ const ProductionBoard = () => {
                           </div>
                         )}
                         <div style={{ fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '12px' }}>{order.customer}</div>
+                        
+                        {order.pendingAmount > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '12px', fontWeight: 'bold' }}>
+                            <CreditCard size={14} /> Pendiente de pago: ${order.pendingAmount.toFixed(2)}
+                          </div>
+                        )}
                         
                         <div className="materials-list" style={{ background: 'var(--bg-main)', padding: '10px', borderRadius: '8px' }}>
                           <div style={{ fontSize: '0.85rem', color: 'white', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>

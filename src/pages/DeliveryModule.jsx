@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw } from 'lucide-react';
+import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw, CreditCard } from 'lucide-react';
 import { fetchOrders, updateOrderMeta, getWcConfig } from '../services/api';
 
 const DeliveryModule = () => {
@@ -128,6 +128,16 @@ const DeliveryModule = () => {
                         <div style={{ fontWeight: '500' }}>{delivery.phone}</div>
                       </div>
                     </div>
+                    
+                    {delivery.pendingAmount > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                        <CreditCard size={20} color="var(--accent-danger)" />
+                        <div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--accent-danger)', fontWeight: 'bold' }}>Cobro a realizar:</div>
+                          <div style={{ fontWeight: '700', color: 'var(--accent-danger)' }}>${delivery.pendingAmount.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    )}
                     
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <Package size={20} color="var(--text-muted)" />

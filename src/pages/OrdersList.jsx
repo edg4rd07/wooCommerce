@@ -384,6 +384,12 @@ const OrdersList = () => {
                   <div style={{ fontSize: '0.82rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}><MapPin size={12} /> {selectedOrder.address}</div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><CreditCard size={12} /> {selectedOrder.paymentMethod}</div>
                   
+                  {selectedOrder.pendingAmount > 0 && (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontWeight: 'bold' }}>
+                      <CreditCard size={12} /> Pendiente de pago: ${selectedOrder.pendingAmount.toFixed(2)}
+                    </div>
+                  )}
+                  
                   {selectedOrder.deliveryDateTime && (
                     <div style={{ fontSize: '0.85rem', color: 'var(--accent-warning)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontWeight: 'bold' }}>
                       <Calendar size={14} /> Fecha de Entrega: {selectedOrder.deliveryDateTime}
