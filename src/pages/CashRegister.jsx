@@ -31,13 +31,6 @@ const CashRegister = () => {
       ]);
 
       const targetDateObj = new Date(`${selectedDate}T12:00:00Z`); // use noon to avoid timezone shifts
-      const isTargetDate = (dateString) => {
-        const d = targetDateObj.getDate().toString().padStart(2, '0');
-        const m = (targetDateObj.getMonth() + 1).toString().padStart(2, '0');
-        const y = targetDateObj.getFullYear();
-        return dateString.includes(`${d}/${m}`) || dateString.includes(`${d}-${m}`) || dateString.includes(`${y}-${m}-${d}`);
-      };
-
       const targetIso = selectedDate;
 
       let s = { cash: 0, card: 0, transfer: 0, creditGiven: 0 };
@@ -46,7 +39,7 @@ const CashRegister = () => {
 
       // 1. Calculate Target Date's Sales
       allOrders.forEach(order => {
-        if (isTargetDate(order.date)) {
+        if (order.rawDate && order.rawDate.startsWith(targetIso)) {
           s.cash += order.paymentSplits?.cash || 0;
           s.card += order.paymentSplits?.card || 0;
           s.transfer += order.paymentSplits?.transfer || 0;

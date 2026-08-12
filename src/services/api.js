@@ -348,7 +348,8 @@ export const fetchOrders = async (params = {}) => {
       productionStatus: dynamicProductionStatus,
       deliveryStatus: deliveryStatus,
       productionItems: productionItems,
-      itemsDetail: itemsDetail
+      itemsDetail: itemsDetail,
+      rawDate: order.date_created
     };
   });
 };
