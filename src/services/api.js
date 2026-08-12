@@ -273,6 +273,13 @@ export const fetchOrders = async (params = {}) => {
       }
     }
 
+    // Check for split payment (credit)
+    let creditAmount = 0;
+    const creditMeta = order.meta_data.find(m => m.key === '_yith_pos_gateway_credito');
+    if (creditMeta) {
+      creditAmount = parseFloat(creditMeta.value) || 0;
+    }
+
     // Detail Items for the Modal
     const itemsDetail = order.line_items.map(item => ({
       name: item.name,
@@ -298,6 +305,7 @@ export const fetchOrders = async (params = {}) => {
       rawCashierId: type === 'pos' && cashierMeta ? String(cashierMeta.value) : null,
       rawStoreId: type === 'pos' && registerMeta ? String(registerMeta.value) : null,
       requiresDelivery: requiresDelivery,
+      pendingAmount: creditAmount,
       deliveryDateTime: deliveryDateTime,
       customerNote: order.customer_note || '',
       productionStatus: dynamicProductionStatus,
