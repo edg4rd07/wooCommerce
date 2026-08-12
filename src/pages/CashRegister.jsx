@@ -10,10 +10,13 @@ const CashRegister = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Date selection state (YYYY-MM-DD)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     loadClosure();
-  }, []);
+  }, [selectedDate]);
 
   const loadClosure = async () => {
     setIsLoading(true);
@@ -27,25 +30,23 @@ const CashRegister = () => {
         fetchCreditPayments()
       ]);
 
-      const today = new Date();
-      const isToday = (dateString) => {
-        // Simple check if the string contains today's day and month
-        const d = today.getDate().toString().padStart(2, '0');
-        const m = (today.getMonth() + 1).toString().padStart(2, '0');
-        const y = today.getFullYear();
-        // Since dates are formatted locally, this is a bit fuzzy. Let's just match D/M/Y or Y-M-D.
+      const targetDateObj = new Date(`${selectedDate}T12:00:00Z`); // use noon to avoid timezone shifts
+      const isTargetDate = (dateString) => {
+        const d = targetDateObj.getDate().toString().padStart(2, '0');
+        const m = (targetDateObj.getMonth() + 1).toString().padStart(2, '0');
+        const y = targetDateObj.getFullYear();
         return dateString.includes(`${d}/${m}`) || dateString.includes(`${d}-${m}`) || dateString.includes(`${y}-${m}-${d}`);
       };
 
-      const todayIso = today.toISOString().split('T')[0];
+      const targetIso = selectedDate;
 
       let s = { cash: 0, card: 0, transfer: 0, creditGiven: 0 };
       let a = { cash: 0, card: 0, transfer: 0, list: [] };
       let oList = [];
 
-      // 1. Calculate Today's Sales
+      // 1. Calculate Target Date's Sales
       allOrders.forEach(order => {
-        if (isToday(order.date)) {
+        if (isTargetDate(order.date)) {
           s.cash += order.paymentSplits?.cash || 0;
           s.card += order.paymentSplits?.card || 0;
           s.transfer += order.paymentSplits?.transfer || 0;
@@ -54,9 +55,9 @@ const CashRegister = () => {
         }
       });
 
-      // 2. Calculate Today's Credit Payments (Abonos)
+      // 2. Calculate Target Date's Credit Payments (Abonos)
       creditPayments.forEach(p => {
-        if (p.date && p.date.startsWith(todayIso)) {
+        if (p.date && p.date.startsWith(targetIso)) {
           if (p.method === 'Efectivo') a.cash += p.amount;
           if (p.method === 'Tarjeta') a.card += p.amount;
           if (p.method === 'Transferencia') a.transfer += p.amount;
@@ -92,13 +93,30 @@ const CashRegister = () => {
 
   return (
     <div className="page-content animate-fade-in" style={{ paddingBottom: '80px' }}>
-      <header className="page-header">
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Landmark size={28} color="var(--primary)" />
             Corte de Caja Diario
           </h1>
-          <p className="subtitle">Resumen de ventas y cobranza del día de hoy</p>
+          <p className="subtitle">Resumen de ventas y cobranza por fecha</p>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-surface)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <Calendar size={20} color="var(--text-muted)" />
+          <input 
+            type="date" 
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: 'white', 
+              fontSize: '1rem', 
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
         </div>
       </header>
 
@@ -111,12 +129,12 @@ const CashRegister = () => {
           
           {/* Main Grand Total */}
           <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(236,72,153,0.1))' }}>
-            <h2 style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Gran Total del Día (Ingreso Real)</h2>
+            <h2 style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Gran Total (Ingreso Real)</h2>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white' }}>
               ${grandTotal.toFixed(2)}
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-              No incluye créditos otorgados hoy, sí incluye créditos pagados hoy.
+              No incluye créditos otorgados, sí incluye créditos pagados en la fecha seleccionada.
             </p>
           </div>
 
