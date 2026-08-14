@@ -40,6 +40,23 @@ const DeliveryModule = () => {
       // Si se entregó, opcionalmente podríamos cambiar el status general de WooCommerce a 'completed'
       // pero por ahora solo manejamos el estado logístico interno
       setDeliveries(prev => prev.map(o => o.rawId === rawId ? { ...o, deliveryStatus: newStatus } : o));
+      
+      // Enviar WhatsApp automático al iniciar ruta
+      if (newStatus === 'en_route') {
+        const delivery = deliveries.find(d => d.rawId === rawId);
+        if (delivery && delivery.phone) {
+          // Limpiar número para wa.me (solo dígitos, asumiendo código de país implícito o ya incluido)
+          // Si el cliente tiene prefijo internacional funcionará mejor, si no, WA web intentará adivinar.
+          let phoneClean = delivery.phone.replace(/\D/g, '');
+          // Si en México suelen poner 10 dígitos, a veces es necesario agregar '52' al inicio si no lo trae
+          if (phoneClean.length === 10) {
+            phoneClean = '52' + phoneClean;
+          }
+          const message = encodeURIComponent(`Hola ${delivery.customer}! 🚚 Tu pedido de Flor y Fresa ya va en camino y está próximo a entregarse. ¡Gracias por tu preferencia!`);
+          window.open(`https://wa.me/${phoneClean}?text=${message}`, '_blank');
+        }
+      }
+
     } catch (err) {
       alert("Error actualizando envío: " + err.message);
     } finally {
