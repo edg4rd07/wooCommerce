@@ -279,9 +279,22 @@ export const fetchOrders = async (params = {}) => {
       }
     }
 
-    // Parse delivery date from customer note (e.g., 2026-08-08 9:00)
+    // Parse delivery date from YITH Delivery Date plugin metadata or customer note
     let deliveryDateTime = null;
-    if (order.customer_note) {
+    
+    const ywcddDate = order.meta_data.find(m => m.key === 'ywcdd_order_delivery_date');
+    const ywcddTimeFrom = order.meta_data.find(m => m.key === 'ywcdd_order_slot_from');
+    const ywcddTimeTo = order.meta_data.find(m => m.key === 'ywcdd_order_slot_to');
+    
+    if (ywcddDate && ywcddDate.value) {
+      let timeStr = '';
+      if (ywcddTimeFrom && ywcddTimeFrom.value && ywcddTimeTo && ywcddTimeTo.value) {
+        timeStr = ` ${ywcddTimeFrom.value} - ${ywcddTimeTo.value}`;
+      } else if (ywcddTimeFrom && ywcddTimeFrom.value) {
+        timeStr = ` ${ywcddTimeFrom.value}`;
+      }
+      deliveryDateTime = `${ywcddDate.value}${timeStr}`;
+    } else if (order.customer_note) {
       const match = order.customer_note.match(/((\d{4}-\d{2}-\d{2})|(\d{2}-\d{2}-\d{4}))(?:\s(\d{1,2}:\d{2}))?/);
       if (match) {
         let datePart = match[1];
