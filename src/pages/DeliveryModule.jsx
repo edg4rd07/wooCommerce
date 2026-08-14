@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw, CreditCard } from 'lucide-react';
+import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw, CreditCard, MessageCircle } from 'lucide-react';
 import { fetchOrders, updateOrderMeta, getWcConfig } from '../services/api';
 
 const DeliveryModule = () => {
@@ -33,6 +33,16 @@ const DeliveryModule = () => {
     }
   };
 
+  const handleSendWhatsApp = (delivery) => {
+    if (!delivery || !delivery.phone) return;
+    let phoneClean = delivery.phone.replace(/\D/g, '');
+    if (phoneClean.length === 10) {
+      phoneClean = '52' + phoneClean;
+    }
+    const message = encodeURIComponent(`Hola ${delivery.customer}! 🚚 Tu pedido de Flor y Fresa ya va en camino y está próximo a entregarse. ¡Gracias por tu preferencia!`);
+    window.open(`https://wa.me/${phoneClean}?text=${message}`, '_blank');
+  };
+
   const handleUpdateStatus = async (rawId, newStatus) => {
     setUpdatingId(rawId);
     try {
@@ -44,17 +54,7 @@ const DeliveryModule = () => {
       // Enviar WhatsApp automático al iniciar ruta
       if (newStatus === 'en_route') {
         const delivery = deliveries.find(d => d.rawId === rawId);
-        if (delivery && delivery.phone) {
-          // Limpiar número para wa.me (solo dígitos, asumiendo código de país implícito o ya incluido)
-          // Si el cliente tiene prefijo internacional funcionará mejor, si no, WA web intentará adivinar.
-          let phoneClean = delivery.phone.replace(/\D/g, '');
-          // Si en México suelen poner 10 dígitos, a veces es necesario agregar '52' al inicio si no lo trae
-          if (phoneClean.length === 10) {
-            phoneClean = '52' + phoneClean;
-          }
-          const message = encodeURIComponent(`Hola ${delivery.customer}! 🚚 Tu pedido de Flor y Fresa ya va en camino y está próximo a entregarse. ¡Gracias por tu preferencia!`);
-          window.open(`https://wa.me/${phoneClean}?text=${message}`, '_blank');
-        }
+        handleSendWhatsApp(delivery);
       }
 
     } catch (err) {
@@ -172,14 +172,17 @@ const DeliveryModule = () => {
                       </button>
                     )}
                     {delivery.deliveryStatus === 'en_route' && (
-                      <>
-                        <button onClick={() => window.open(`https://maps.google.com/?q=${delivery.address}`, '_blank')} className="btn-action glass-surface" style={{ flex: 1, border: '1px solid var(--border-color)', color: 'white' }}>
-                          <MapPin size={18} /> Ver Mapa
+                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                        <button onClick={() => window.open(`https://maps.google.com/?q=${delivery.address}`, '_blank')} className="btn-action glass-surface" style={{ flex: 1, border: '1px solid var(--border-color)', color: 'white', padding: '10px 8px' }} title="Ver Mapa">
+                          <MapPin size={18} />
                         </button>
-                        <button onClick={() => handleUpdateStatus(delivery.rawId, 'delivered')} disabled={updatingId === delivery.rawId} className="btn-action" style={{ flex: 2, background: 'var(--accent-success)', color: '#fff' }}>
-                          <CheckCircle size={18} /> {updatingId === delivery.rawId ? 'Actualizando...' : 'Marcar como Entregado'}
+                        <button onClick={() => handleSendWhatsApp(delivery)} className="btn-action glass-surface" style={{ flex: 1, border: '1px solid #10b981', color: '#10b981', padding: '10px 8px' }} title="Avisar por WhatsApp">
+                          <MessageCircle size={18} />
                         </button>
-                      </>
+                        <button onClick={() => handleUpdateStatus(delivery.rawId, 'delivered')} disabled={updatingId === delivery.rawId} className="btn-action" style={{ flex: 2, background: 'var(--accent-success)', color: '#fff', padding: '10px 8px' }}>
+                          <CheckCircle size={18} /> {updatingId === delivery.rawId ? 'Actualizando...' : 'Entregado'}
+                        </button>
+                      </div>
                     )}
                     {delivery.deliveryStatus === 'delivered' && (
                       <div style={{ width: '100%', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
