@@ -42,6 +42,9 @@ const Sidebar = () => {
               <LayoutDashboard size={20} />
               <span>Dashboard</span>
             </Link>
+          </>
+        )}
+        
         {(isAdmin || isCashier) && (
           <>
             <Link to="/orders" className={`nav-item ${location.pathname === '/orders' ? 'active' : ''}`}>
