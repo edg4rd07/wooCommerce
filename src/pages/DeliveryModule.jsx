@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, MapPin, Phone, User, CheckCircle, Navigation, Clock, Package, RefreshCw, CreditCard, MessageCircle } from 'lucide-react';
 import { fetchOrders, updateOrderMeta, getWcConfig } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const DeliveryModule = () => {
+  const { user } = useAuth();
   const [deliveries, setDeliveries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +32,18 @@ const DeliveryModule = () => {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAssignRoute = async (rawId) => {
+    setUpdatingId(rawId);
+    try {
+      await updateOrderMeta(rawId, 'derp_delivery_user', user.name);
+      setDeliveries(prev => prev.map(o => o.rawId === rawId ? { ...o, deliveryUser: user.name } : o));
+    } catch (err) {
+      alert("Error asignando ruta: " + err.message);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -90,15 +104,26 @@ const DeliveryModule = () => {
         <div className="delivery-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {isLoading && deliveries.length === 0 ? (
              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando rutas de WooCommerce...</div>
-          ) : deliveries.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <CheckCircle size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-              <h3>No tienes entregas pendientes</h3>
-              <p>No hay pedidos con envío pendiente en el sistema.</p>
-            </div>
-          ) : (
-            deliveries.map(delivery => (
-              <div key={delivery.rawId} className="delivery-card glass-panel" style={{ 
+          ) : (() => {
+            const visibleDeliveries = deliveries.filter(d => {
+              if (user?.role === 'admin' || user?.role === 'delivery') return true;
+              if (!d.deliveryUser) return true;
+              if (d.deliveryUser === user?.name) return true;
+              return false;
+            });
+
+            if (visibleDeliveries.length === 0) {
+              return (
+                <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <CheckCircle size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+                  <h3>No tienes entregas pendientes</h3>
+                  <p>No hay pedidos con envío pendiente en el sistema.</p>
+                </div>
+              );
+            }
+
+            return visibleDeliveries.map(delivery => (
+              <div key={delivery.rawId} className="delivery-card glass-panel" style={{  
                 overflow: 'hidden', 
                 borderLeft: `4px solid ${
                   delivery.deliveryStatus === 'en_route' ? 'var(--accent-warning)' : 
@@ -115,6 +140,12 @@ const DeliveryModule = () => {
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><User size={14}/> {delivery.customer}</span>
                         <span>•</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={14}/> {delivery.date}</span>
+                        {delivery.deliveryUser && (
+                          <>
+                            <span>•</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)' }}><Truck size={14}/> Asignado a: {delivery.deliveryUser}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     
@@ -166,7 +197,12 @@ const DeliveryModule = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    {delivery.deliveryStatus === 'pending' && (
+                    {delivery.deliveryStatus === 'pending' && !delivery.deliveryUser && (
+                      <button onClick={() => handleAssignRoute(delivery.rawId)} disabled={updatingId === delivery.rawId} className="btn-action" style={{ background: 'var(--primary)', color: '#fff' }}>
+                        <Truck size={18} /> {updatingId === delivery.rawId ? 'Asignando...' : 'Tomar Ruta'}
+                      </button>
+                    )}
+                    {delivery.deliveryStatus === 'pending' && delivery.deliveryUser && (
                       <button onClick={() => handleUpdateStatus(delivery.rawId, 'en_route')} disabled={updatingId === delivery.rawId} className="btn-action" style={{ background: 'var(--accent-warning)', color: '#fff' }}>
                         <Navigation size={18} /> {updatingId === delivery.rawId ? 'Actualizando...' : 'Iniciar Ruta'}
                       </button>
@@ -193,7 +229,7 @@ const DeliveryModule = () => {
                 </div>
               </div>
             ))
-          )}
+          })()}
         </div>
       )}
       <style>{`

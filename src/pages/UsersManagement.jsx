@@ -3,6 +3,15 @@ import { Users, UserPlus, Save, Trash2, Edit2, Key, Shield } from 'lucide-react'
 import { useAuth } from '../context/AuthContext';
 import { saveProfiles } from '../services/api';
 
+const ROLE_NAMES = {
+  admin: 'Administrador',
+  production: 'Jefe de Producción',
+  productor: 'Operario de Producción',
+  delivery: 'Jefe de Logística',
+  repartidor: 'Chofer / Repartidor',
+  cashier: 'Cajero'
+};
+
 const UsersManagement = () => {
   const { PROFILES, refreshProfiles } = useAuth();
   const [profilesList, setProfilesList] = useState(Object.values(PROFILES));
@@ -120,7 +129,7 @@ const UsersManagement = () => {
                 <div>
                   <div style={{ fontWeight: '600' }}>{profile.name}</div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '12px', marginTop: '4px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Shield size={12}/> {profile.role}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Shield size={12}/> {ROLE_NAMES[profile.role] || profile.role}</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Key size={12}/> PIN: {profile.pin}</span>
                   </div>
                 </div>
@@ -179,8 +188,11 @@ const UsersManagement = () => {
                 disabled={editingId === 'admin'}
                 style={inputStyle}
               >
-                <option value="production">Producción</option>
-                <option value="delivery">Logística / Repartidor</option>
+                <option value="production">Jefe de Producción</option>
+                <option value="productor">Operario de Producción</option>
+                <option value="delivery">Jefe de Logística</option>
+                <option value="repartidor">Chofer / Repartidor</option>
+                <option value="cashier">Cajero</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>

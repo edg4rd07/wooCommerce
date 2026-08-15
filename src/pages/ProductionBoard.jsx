@@ -385,9 +385,9 @@ const ProductionBoard = () => {
     o.customer.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Filtrar según el rol (Admin ve todos, Operario ve sus en_proceso/completados)
+  // Filtrar según el rol (Admin y Jefe ven todos, Operario ve sus en_proceso/completados)
   const visibleOrders = filteredOrders.filter(o => {
-    if (user?.role === 'admin') return true;
+    if (user?.role === 'admin' || user?.role === 'production') return true;
     if (o.productionStatus === 'pending') return true;
     
     // Si la orden ya está en progreso, verificar si el operario tiene ALGÚN ítem asignado a él, o si hay ítems pendientes de tomar

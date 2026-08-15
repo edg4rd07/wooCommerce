@@ -23,8 +23,11 @@ const Sidebar = () => {
   if (!user) return null;
   
   const isAdmin = user.role === 'admin';
-  const isProd = user.role === 'production';
-  const isDelivery = user.role === 'delivery';
+  const isProdManager = user.role === 'production';
+  const isProductor = user.role === 'productor';
+  const isDeliveryManager = user.role === 'delivery';
+  const isRepartidor = user.role === 'repartidor';
+  const isCashier = user.role === 'cashier';
 
   return (
     <aside className="sidebar glass-surface">
@@ -39,6 +42,8 @@ const Sidebar = () => {
               <LayoutDashboard size={20} />
               <span>Dashboard</span>
             </Link>
+        {(isAdmin || isCashier) && (
+          <>
             <Link to="/orders" className={`nav-item ${location.pathname === '/orders' ? 'active' : ''}`}>
               <ShoppingCart size={20} />
               <span>Pedidos POS</span>
@@ -50,14 +55,14 @@ const Sidebar = () => {
           </>
         )}
         
-        {(isAdmin || isProd) && (
+        {(isAdmin || isProdManager || isProductor) && (
           <Link to="/production" className={`nav-item ${location.pathname === '/production' ? 'active' : ''}`}>
             <Factory size={20} />
             <span>Producción</span>
           </Link>
         )}
 
-        {(isAdmin || isDelivery) && (
+        {(isAdmin || isDeliveryManager || isRepartidor) && (
           <Link to="/delivery" className={`nav-item ${location.pathname === '/delivery' ? 'active' : ''}`}>
             <Truck size={20} />
             <span>Logística</span>
@@ -116,7 +121,7 @@ const AppContent = () => {
     return (
       <Routes>
         <Route path="/print-checklist" element={
-          <ProtectedRoute allowedRoles={['admin', 'production']}>
+          <ProtectedRoute allowedRoles={['admin', 'production', 'productor']}>
             <PrintChecklist />
           </ProtectedRoute>
         } />
@@ -138,19 +143,19 @@ const AppContent = () => {
           } />
           
           <Route path="/orders" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'cashier']}>
               <OrdersList />
             </ProtectedRoute>
           } />
           
           <Route path="/production" element={
-            <ProtectedRoute allowedRoles={['admin', 'production']}>
+            <ProtectedRoute allowedRoles={['admin', 'production', 'productor']}>
               <ProductionBoard />
             </ProtectedRoute>
           } />
           
           <Route path="/delivery" element={
-            <ProtectedRoute allowedRoles={['admin', 'delivery']}>
+            <ProtectedRoute allowedRoles={['admin', 'delivery', 'repartidor']}>
               <DeliveryModule />
             </ProtectedRoute>
           } />
@@ -186,7 +191,7 @@ const AppContent = () => {
           } />
           
           <Route path="/corte-caja" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'cashier']}>
               <CashRegister />
             </ProtectedRoute>
           } />

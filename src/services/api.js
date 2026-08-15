@@ -234,6 +234,9 @@ export const fetchOrders = async (params = {}) => {
     // Determine internal custom states (Production / Delivery) using WooCommerce Meta Data
     const delivMeta = order.meta_data.find(m => m.key === 'derp_delivery_status');
     const deliveryStatus = delivMeta ? delivMeta.value : 'pending'; // pending, en_route, delivered
+
+    const delivUserMeta = order.meta_data.find(m => m.key === 'derp_delivery_user');
+    const deliveryUser = delivUserMeta ? delivUserMeta.value : null;
     
     // Formatting
     const dateObj = new Date(order.date_created);
@@ -360,6 +363,7 @@ export const fetchOrders = async (params = {}) => {
       customerNote: order.customer_note || '',
       productionStatus: dynamicProductionStatus,
       deliveryStatus: deliveryStatus,
+      deliveryUser: deliveryUser,
       productionItems: productionItems,
       itemsDetail: itemsDetail,
       rawDate: order.date_created
