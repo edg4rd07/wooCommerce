@@ -49,9 +49,18 @@ const DeliveryModule = () => {
 
   const handleSendWhatsApp = (delivery) => {
     if (!delivery || !delivery.phone) return;
+    
+    const hasPlus = delivery.phone.trim().startsWith('+');
     let phoneClean = delivery.phone.replace(/\D/g, '');
-    if (phoneClean.length === 10) {
-      phoneClean = '52' + phoneClean;
+    
+    if (!hasPlus && phoneClean.length === 10) {
+      // Ladas comunes de Estados Unidos en la frontera (El Paso, Las Cruces, etc)
+      if (phoneClean.startsWith('915') || phoneClean.startsWith('575') || phoneClean.startsWith('830') || phoneClean.startsWith('956')) {
+        phoneClean = '1' + phoneClean;
+      } else {
+        // Para 656 y el resto de México
+        phoneClean = '52' + phoneClean;
+      }
     }
     const message = encodeURIComponent(`Hola ${delivery.customer}! 🚚 Tu pedido de Flor y Fresa ya va en camino y está próximo a entregarse. ¡Gracias por tu preferencia!`);
     window.open(`https://wa.me/${phoneClean}?text=${message}`, '_blank');
