@@ -340,13 +340,22 @@ export const fetchOrders = async (params = {}) => {
       total: item.total
     }));
 
+    let customerName = `${order.billing.first_name} ${order.billing.last_name}`.trim() || 'Cliente Mostrador';
+    let customerPhone = order.billing.phone || 'No registrado';
+
+    // Para POS, se captura el teléfono en el campo de apellido
+    if (type === 'pos' && order.billing.last_name) {
+      customerPhone = order.billing.last_name;
+      customerName = order.billing.first_name || 'Cliente Mostrador';
+    }
+
     return {
       rawId: order.id,
       id: `#${order.number}`,
       type: type,
-      customer: `${order.billing.first_name} ${order.billing.last_name}`.trim() || 'Cliente Mostrador',
+      customer: customerName,
       email: order.billing.email || 'N/A',
-      phone: order.billing.phone || 'No registrado',
+      phone: customerPhone,
       address: `${order.shipping.address_1}, ${order.shipping.city}`.trim() || 'Recoger en tienda',
       paymentMethod: order.payment_method_title || 'N/A',
       total: `${order.currency_symbol || '$'}${order.total}`,
